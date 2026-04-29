@@ -10,6 +10,7 @@
 // - opencode-interrupt-plugin: interrupt queued messages at step boundaries
 // - subagent-rate-limit-plugin: aborts only task subagents after rate limits
 // - kitty-graphics-plugin: extract Kitty Graphics Protocol images from bash output
+// - discord-notify-plugin: ping KIMAKI_NOTIFY_USER_ID on session.idle via IPC
 
 export { ipcToolsPlugin } from './ipc-tools-plugin.js'
 export { contextAwarenessPlugin } from './context-awareness-plugin.js'
@@ -20,3 +21,4 @@ export { imageOptimizerPlugin } from './image-optimizer-plugin.js'
 export { subagentRateLimitPlugin } from './subagent-rate-limit-plugin.js'
 export { kittyGraphicsPlugin } from 'kitty-graphics-agent'
 export { injectionGuardInternal as injectionGuard } from 'opencode-injection-guard'
+export { discordNotifyPlugin } from './discord-notify-plugin.js'

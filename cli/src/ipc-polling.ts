@@ -15,6 +15,7 @@ import {
 import { showFileUploadButton } from './commands/file-upload.js'
 import { queueActionButtonsRequest } from './commands/action-buttons.js'
 import type { ActionButtonColor } from './commands/action-buttons.js'
+import { NOTIFY_MESSAGE_FLAGS } from './discord-utils.js'
 import { createLogger, LogPrefix } from './logger.js'
 import { notifyError } from './sentry.js'
 
@@ -228,6 +229,27 @@ async function dispatchRequest({
         id: req.id,
         response: JSON.stringify({ ok: true }),
       })
+      return
+    }
+
+    case 'discord_notify': {
+      const parsed = errore.try({
+        try: () => JSON.parse(req.payload) as { userId: string },
+        catch: (e) => new IpcDispatchError({ requestId: req.id, reason: 'Invalid payload JSON', cause: e }),
+      })
+      if (parsed instanceof Error) {
+        await completeIpcRequest({ id: req.id, response: JSON.stringify({ error: parsed.message }) })
+        return parsed
+      }
+      const thread = await discordClient.channels.fetch(req.thread_id).catch(
+        (e) => new IpcDispatchError({ requestId: req.id, reason: 'Thread fetch failed', cause: e }),
+      )
+      if (thread instanceof Error || !thread?.isThread()) {
+        await completeIpcRequest({ id: req.id, response: JSON.stringify({ error: 'Thread not found' }) })
+        return
+      }
+      await thread.send({ content: `<@${parsed.userId}>`, flags: NOTIFY_MESSAGE_FLAGS }).catch(() => {})
+      await completeIpcRequest({ id: req.id, response: JSON.stringify({ ok: true }) })
       return
     }
 
