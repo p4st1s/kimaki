@@ -18,6 +18,7 @@ import {
   listTrackedTextChannels,
   setPartMessagesBatch,
   upsertThreadSession,
+  createIpcRequest,
 } from './database.js'
 import { sendThreadMessage } from './discord-utils.js'
 import { createLogger, LogPrefix } from './logger.js'
@@ -41,6 +42,9 @@ const EXTERNAL_SYNC_INTERVAL_MS = 5_000
 // Don't sync sessions from before the CLI started. 5 min grace window
 // covers sessions that were just created before the bot connected.
 const CLI_START_MS = Date.now() - 5 * 60 * 1000
+
+// Tracks sessions that were busy on the previous poll to detect busy→idle transitions.
+const previouslyBusySessions = new Set<string>()
 
 type RenderableUserTextPart = {
   id: string
@@ -592,10 +596,11 @@ async function pollExternalSessions({
     }).catch(() => {
       return null
     })
+    const statuses = (statusesResponse?.data ?? {}) as Record<string, { type: string }>
     if (statusesResponse?.data) {
       await pulseTypingForBusySessions({
         discordClient,
-        statuses: statusesResponse.data as Record<string, { type: string }>,
+        statuses,
       }).catch(() => {})
     }
 
@@ -609,6 +614,7 @@ async function pollExternalSessions({
     const sorted = sortSessionsByRecency(sessions)
 
     for (const session of sorted) {
+      const isSessionBusy = statuses[session.id]?.type === 'busy'
       await syncSessionToThread({
         client,
         discordClient,
@@ -625,6 +631,24 @@ async function pollExternalSessions({
           `External session sync failed for ${session.id}`,
         )
       })
+
+      const notifyUserId = process.env.KIMAKI_NOTIFY_USER_ID
+      if (notifyUserId && !isSessionBusy && previouslyBusySessions.has(session.id)) {
+        const threadId = await getThreadIdBySessionId(session.id)
+        if (threadId) {
+          await createIpcRequest({
+            type: 'discord_notify',
+            sessionId: session.id,
+            threadId,
+            payload: JSON.stringify({ userId: notifyUserId }),
+          }).catch(() => {})
+        }
+      }
+      if (isSessionBusy) {
+        previouslyBusySessions.add(session.id)
+      } else {
+        previouslyBusySessions.delete(session.id)
+      }
     }
   }
 }
