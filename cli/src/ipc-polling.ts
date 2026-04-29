@@ -248,7 +248,8 @@ async function dispatchRequest({
         await completeIpcRequest({ id: req.id, response: JSON.stringify({ error: 'Thread not found' }) })
         return
       }
-      await thread.send({ content: `<@${parsed.userId}>`, flags: NOTIFY_MESSAGE_FLAGS }).catch(() => {})
+      const mentions = parsed.userId.split(',').map((id) => `<@${id.trim()}>`).join(' ')
+      await thread.send({ content: mentions, flags: NOTIFY_MESSAGE_FLAGS }).catch(() => {})
       await completeIpcRequest({ id: req.id, response: JSON.stringify({ ok: true }) })
       return
     }
