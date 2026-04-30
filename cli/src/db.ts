@@ -135,14 +135,15 @@ async function migrateSchema(prisma: PrismaClient): Promise<void> {
         s.length > 0 &&
         !/^CREATE\s+TABLE\s+["']?sqlite_sequence["']?\s*\(/i.test(s),
     )
-    // Make CREATE INDEX idempotent
+    // Make CREATE TABLE / INDEX idempotent
     .map((s) =>
       s
         .replace(
           /^CREATE\s+UNIQUE\s+INDEX\b(?!\s+IF)/i,
           'CREATE UNIQUE INDEX IF NOT EXISTS',
         )
-        .replace(/^CREATE\s+INDEX\b(?!\s+IF)/i, 'CREATE INDEX IF NOT EXISTS'),
+        .replace(/^CREATE\s+INDEX\b(?!\s+IF)/i, 'CREATE INDEX IF NOT EXISTS')
+        .replace(/^CREATE\s+TABLE\b(?!\s+IF)/i, 'CREATE TABLE IF NOT EXISTS'),
     )
   for (const statement of statements) {
     await prisma.$executeRawUnsafe(statement)
