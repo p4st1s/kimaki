@@ -1787,6 +1787,19 @@ export async function createIpcRequest({
   payload: string
 }) {
   const prisma = await getPrisma()
+  if (type === 'discord_notify') {
+    const since = new Date(Date.now() - 10_000)
+    const existing = await prisma.ipc_requests.findFirst({
+      where: {
+        type: 'discord_notify',
+        session_id: sessionId,
+        created_at: { gte: since },
+      },
+    })
+    if (existing) {
+      return existing
+    }
+  }
   return prisma.ipc_requests.create({
     data: {
       type,

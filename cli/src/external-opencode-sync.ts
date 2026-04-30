@@ -614,7 +614,6 @@ async function pollExternalSessions({
     const sorted = sortSessionsByRecency(sessions)
 
     for (const session of sorted) {
-      const isSessionBusy = statuses[session.id]?.type === 'busy'
       await syncSessionToThread({
         client,
         discordClient,
@@ -632,6 +631,7 @@ async function pollExternalSessions({
         )
       })
 
+      const isSessionBusy = statuses[session.id]?.type === 'busy'
       const notifyUserId = process.env.KIMAKI_NOTIFY_USER_ID
       if (notifyUserId && !isSessionBusy && previouslyBusySessions.has(session.id)) {
         const threadId = await getThreadIdBySessionId(session.id)
